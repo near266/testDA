@@ -14,7 +14,7 @@ import { env } from '~/config/environment'
 const START_SERVER = () => {
   const app = express()
   //app.use(cors())
-  const allowedOrigins = ['http://localhost:5173', 'https://api.vn'];
+  const allowedOrigins = ['http://localhost:5173', 'https://testda-2.onrender.com/'];
 
 const corsOptions = {
     origin: function (origin, callback) {
