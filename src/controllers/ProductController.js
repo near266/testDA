@@ -1,5 +1,4 @@
 const ProductService = require('~/services/ProductService')
-const JwtService = require('~/services/JwtService')
 
 const createProduct = async (req, res) => {
     try {

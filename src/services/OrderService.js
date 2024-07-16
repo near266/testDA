@@ -88,18 +88,24 @@ const createOrder = (newOrder) => {
                 message: 'success'
             })
         } catch (e) {
-            //   console.log('e', e)
             reject(e)
         }
     })
 }
 
-const getAllOrderDetails = (id) => {
+const getAllUserOrder = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
             const orders = await Order.find({
                 user: id
+            }).populate({
+                path: 'orderItems.productId',
+                select: 'name image price'
+            }).populate({
+                path: 'user',
+                select: 'name phoneNumber'
             }).sort({ createdAt: -1, updatedAt: -1 })
+
             if (orders === null) {
                 return resolve({
                     status: 'ERR',
@@ -113,7 +119,6 @@ const getAllOrderDetails = (id) => {
                 data: orders
             })
         } catch (e) {
-            // console.log('e', e)
             reject(e)
         }
     })
@@ -144,13 +149,12 @@ const getOrderDetails = (id) => {
                 data: order
             })
         } catch (e) {
-            // console.log('e', e)
             reject(e)
         }
     })
 }
 
-const cancelOrderDetails = (id) => {
+const cancelOrder = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
             const order = await Order.findById(id)
@@ -160,6 +164,7 @@ const cancelOrderDetails = (id) => {
                     message: "Không thể hủy đơn sau khi đơn đã được ship"
                 })
             }
+            const data = order.orderItems
             const promises = data.map(async (item) => {
                 const productData = await Product.findOneAndUpdate(
                     {
@@ -201,17 +206,40 @@ const cancelOrderDetails = (id) => {
 const getAllOrder = () => {
     return new Promise(async (resolve, reject) => {
         try {
-            const allOrder = await Order.find().sort({ createdAt: -1, updatedAt: -1 })
+            const allOrder = await Order.find().sort({ status: 1, createdAt: -1, updatedAt: -1 });
+
+            const statusStats = await Order.aggregate([
+                { $group: { _id: "$status", count: { $sum: 1 } } }
+            ]);
+
+            const paymentStats = await Order.aggregate([
+                {
+                    $group: {
+                        _id: { isPaid: "$isPaid" },
+                        count: { $sum: 1 }
+                    }
+                }
+            ]);
+
+            const stat = {
+                status: statusStats.map(stat => ({ name: stat._id, value: stat.count })),
+                paymentMethod: paymentStats.map(stat => ({
+                    name: stat._id.isPaid ? 'Momo' : 'Thanh toán khi nhận',
+                    value: stat.count
+                }))
+            };
+
             resolve({
                 status: 'OK',
                 message: 'Success',
-                data: allOrder
-            })
+                data: allOrder,
+                stat: stat
+            });
         } catch (e) {
-            reject(e)
+            reject(e);
         }
-    })
-}
+    });
+};
 
 const deleteManyOrder = (ids) => {
     return new Promise(async (resolve, reject) => {
@@ -401,10 +429,11 @@ const totalRevenueStatistic = (year) => {
     })
 }
 
-const payOrderSuccess = async (orderId) => {
+const payOrderSuccess = async (orderId, transId) => {
     try {
         const order = await Order.findById(orderId)
-        order.isPaid = true;
+        order.isPaid = true
+        order.transId = transId
         await order.save()
         return {
             status: "OK",
@@ -420,9 +449,9 @@ const payOrderSuccess = async (orderId) => {
 
 module.exports = {
     createOrder,
-    getAllOrderDetails,
+    getAllUserOrder,
     getOrderDetails,
-    cancelOrderDetails,
+    cancelOrder,
     getAllOrder,
     deleteManyOrder,
     deleteOrder,

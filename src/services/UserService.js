@@ -1,9 +1,12 @@
+import { env } from '~/config/environment'
+const jwt = require('jsonwebtoken');
 const User = require("../models/UserModel")
 const BlockPhone = require("../models/BlockedPhoneModel")
 const bcrypt = require("bcrypt")
 const { genneralAccessToken, genneralRefreshToken } = require("./JwtService")
 const cartService = require("./CartService");
 const cardService = require("./CardService")
+const EmailService = require("./EmailService")
 
 const createUser = (newUser) => {
     return new Promise(async (resolve, reject) => {
@@ -67,7 +70,6 @@ const createUser = (newUser) => {
 const loginUser = (user) => {
     return new Promise(async (resolve, reject) => {
         const { password, phoneNumber } = user
-        //console.log(name, email, phoneNumber)
         try {
             const checkUser = await User.findOne({
                 phoneNumber: phoneNumber
@@ -110,6 +112,80 @@ const loginUser = (user) => {
     })
 }
 
+const sendResetLinkEmail = (email) => {
+    return new Promise(async (resolve, reject) => {
+
+        try {
+            const checkUser = await User.findOne({
+                email: email
+            })
+            if (checkUser === null) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Email này chưa đăng kí tài khoản'
+                })
+            }
+
+            const token = jwt.sign({ email }, env.SECRET_KEY, {
+                expiresIn: "2h",
+            });
+            await EmailService.sendResetLink(checkUser.email, token)
+            resolve({
+                status: "OK",
+                message: 'Ckeck your email'
+            })
+
+        } catch (e) {
+            reject(e)
+        }
+    })
+}
+
+const resetPassword = (email, token, password) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const checkUser = await User.findOne({
+                email: email
+            })
+            if (checkUser === null) {
+                return resolve({
+                    status: 'ERR',
+                    message: 'Không tìm thấy tài khoản'
+                })
+            }
+
+            jwt.verify(token, env.SECRET_KEY, function (err, user) {
+                if (err) {
+                    return res.status(403).json({
+                        status: 'ERR',
+                        message: 'Token is not valid'
+                    })
+                }
+
+                bcrypt.hash(password, 10, async (err, hash) => {
+                    if (err) {
+                        return resolve({
+                            status: 'ERR',
+                            message: 'Failed to hash password'
+                        })
+                    }
+
+                    checkUser.password = hash
+                    await checkUser.save()
+
+                    resolve({
+                        status: 'OK',
+                        message: "Reset password complete"
+                    })
+                })
+            })
+        } catch (e) {
+            reject(e)
+        }
+    })
+}
+
+
 const updateUser = (userId, data) => {
     return new Promise(async (resolve, reject) => {
         try {
@@ -147,6 +223,11 @@ const updateUser = (userId, data) => {
                         message: 'Số diện thoại này đã được sử dụng'
                     })
                 }
+            }
+
+            const checkBlockPhone = await BlockPhone.findOne({ phoneNumber: checkUser.phoneNumber })
+            if (!checkBlockPhone) {
+                await BlockPhone.create({ phoneNumber: data.phoneNumber })
             }
 
             const updatedUser = await User.findByIdAndUpdate(userId, data, { new: true })
@@ -257,6 +338,8 @@ module.exports = {
     createUser,
     loginUser,
     updateUser,
+    sendResetLinkEmail,
+    resetPassword,
     deleteUser,
     getAllUser,
     getDetailUser,

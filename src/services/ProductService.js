@@ -1,6 +1,4 @@
 const Product = require("../models/ProductModel")
-const bcrypt = require("bcrypt")
-const { genneralAccessToken, genneralRefreshToken } = require("./JwtService")
 
 const createProduct = (newProduct) => {
     return new Promise(async (resolve, reject) => {
@@ -172,7 +170,6 @@ const getAllProduct = (limit, page, sort, filter) => {
         throw error;
     }
 };*/
-
 
 const getDetailProduct = (productId) => {
     return new Promise(async (resolve, reject) => {

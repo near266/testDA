@@ -10,6 +10,12 @@ const createOffSlip = async (req, res) => {
                 message: 'The input is required'
             })
         }
+        if (bookIds.length > 3) {
+            return res.status(200).json({
+                status: 'ERR',
+                message: 'Không thể mượn đồng thời nhiều hơn 3'
+            })
+        }
         const response = await OffSlipService.createBorrowerSlip(req.body)
         return res.status(200).json(response)
 
@@ -23,7 +29,6 @@ const createOffSlip = async (req, res) => {
 const getAllOffSlip = async (req, res) => {
     try {
         const phoneNumber = req.params.id
-        //console.log(userId)
         if (!phoneNumber) {
             return res.status(200).json({
                 status: 'ERR',
@@ -101,7 +106,7 @@ const deleteOffSlip = async (req, res) => {
 const updateState = async (req, res) => {
     try {
         const bSlipId = req.params.id;
-        const newState = req.body.newState
+        const { newState, lateFee, paidLateFee } = req.body
 
         if (!newState) {
             return res.status(400).json({
@@ -110,7 +115,7 @@ const updateState = async (req, res) => {
             });
         }
 
-        const response = await OffSlipService.updateState(bSlipId, newState)
+        const response = await OffSlipService.updateState(bSlipId, newState, lateFee, paidLateFee)
         return res.status(200).json(response)
     } catch (e) {
         return res.status(400).json({

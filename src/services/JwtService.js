@@ -5,7 +5,7 @@ export const genneralAccessToken = (payload) => {
     const access_token = jwt.sign({
         payload
         //...payload
-    }, env.SECRET_KEY, { expiresIn: '8h' }) //'6h'
+    }, env.SECRET_KEY, { expiresIn: '6h' }) //'6h'
 
     return access_token
 }

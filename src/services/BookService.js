@@ -108,9 +108,16 @@ const getAllBook = (limit, page, sort, filter) => {
   return new Promise(async (resolve, reject) => {
     try {
       const totalBook = await Book.countDocuments();
+      const [booksTotalQuantityResult, booksAvailableResult] = await Promise.all([
+        Book.aggregate([{ $group: { _id: null, total: { $sum: "$quantityTotal" } } }]),
+        Book.aggregate([{ $group: { _id: null, total: { $sum: "$quantityAvailable" } } }]),
+      ]);
+
+      const booksTotalQuantity = booksTotalQuantityResult[0] ? booksTotalQuantityResult[0].total : 0;
+      const booksAvailable = booksAvailableResult[0] ? booksAvailableResult[0].total : 0;
+
       let allBook = [];
       if (filter) {
-        //console.log(filter)
         const label = filter[0];
         const allObjectFilter = await Book.find({
           [label]: { $regex: filter[1] },
@@ -124,6 +131,8 @@ const getAllBook = (limit, page, sort, filter) => {
           total: totalBook,
           pageCurrent: Number(page + 1),
           totalPage: Math.ceil(totalBook / limit),
+          booksTotalQuantity: booksTotalQuantity,
+          booksAvailable: booksAvailable,
         });
       }
       if (sort) {
@@ -141,6 +150,8 @@ const getAllBook = (limit, page, sort, filter) => {
           total: totalBook,
           pageCurrent: Number(page + 1),
           totalPage: Math.ceil(totalBook / limit),
+          booksTotalQuantity: booksTotalQuantity,
+          booksAvailable: booksAvailable,
         });
       }
       if (!limit) {
@@ -158,6 +169,8 @@ const getAllBook = (limit, page, sort, filter) => {
         total: totalBook,
         pageCurrent: Number(page + 1),
         totalPage: Math.ceil(totalBook / limit),
+        booksTotalQuantity: booksTotalQuantity,
+        booksAvailable: booksAvailable,
       });
     } catch (e) {
       reject(e);
@@ -165,43 +178,42 @@ const getAllBook = (limit, page, sort, filter) => {
   });
 };
 
-/*const getAllProduct = async (limit, page, sort, filter) => {
+const getAll = (limit, page, categoryName, keyword) => {
+  return new Promise(async (resolve, reject) => {
     try {
-        let query = Product.find();
-        if (filter && filter.length === 2) {
-            const [label, value] = filter;
-            query = query.where(label).regex(new RegExp(value, 'i'));
-            console.log(query)
-        }
+      let query = {};
 
-        if (sort && sort.length === 2) {
-            const [order, field] = sort;
-            const sortOption = {};
-            sortOption[field] = order;
-            query = query.sort(sortOption);
-        } else {
-            query = query.sort({ createdAt: -1, updatedAt: -1 });
-        }
+      if (categoryName) {
+        query.categoryName = categoryName;
+      }
 
-        if (limit) {
-            query = query.limit(limit).skip(page * limit);
-        }
+      if (keyword) {
+        query.$or = [
+          { name: { $regex: keyword, $options: "i" } },
+          { author: { $regex: keyword, $options: "i" } }
+        ];
+      }
 
-        const totalProduct = await Product.countDocuments();
-        const allProduct = await query.exec();
+      const totalBooks = await Book.countDocuments(query);
 
-        return {
-            status: 'OK',
-            message: 'Success',
-            data: allProduct,
-            total: totalProduct,
-            pageCurrent: Number(page + 1),
-            totalPage: Math.ceil(totalProduct / limit)
-        };
-    } catch (error) {
-        throw error;
+      const books = await Book.find(query)
+        .limit(limit)
+        .skip((page - 1) * limit)
+        .sort({ createdAt: -1, updatedAt: -1 });
+
+      resolve({
+        status: "OK",
+        message: "Success",
+        data: books,
+        total: totalBooks,
+        pageCurrent: Number(page),
+        totalPage: Math.ceil(totalBooks / limit),
+      });
+    } catch (e) {
+      reject(e);
     }
-};*/
+  });
+};
 
 const getDetailBook = (bookId) => {
   return new Promise(async (resolve, reject) => {
@@ -246,6 +258,7 @@ module.exports = {
   updateBook,
   deleteBook,
   getAllBook,
+  getAll,
   getDetailBook,
   deleteManyBook,
 };

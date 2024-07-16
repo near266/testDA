@@ -24,7 +24,6 @@ const createBorrowerSlip = async (req, res) => {
 const getAllUserSlip = async (req, res) => {
     try {
         const userId = req.params.id
-        //console.log(userId)
         if (!userId) {
             return res.status(200).json({
                 status: 'ERR',
@@ -141,7 +140,7 @@ const deleteBorrowerSlip = async (req, res) => {
 const updateState = async (req, res) => {
     try {
         const bSlipId = req.params.id;
-        const newState = req.body.newState
+        const { newState, lateFee, paidLateFee } = req.body
 
         if (!newState) {
             return res.status(400).json({
@@ -150,7 +149,7 @@ const updateState = async (req, res) => {
             });
         }
 
-        const response = await BorrowerSlipService.updateState(bSlipId, newState)
+        const response = await BorrowerSlipService.updateState(bSlipId, newState, lateFee, paidLateFee)
         return res.status(200).json(response)
     } catch (e) {
         return res.status(404).json({
